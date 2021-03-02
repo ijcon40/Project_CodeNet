@@ -48,9 +48,9 @@ public class GraphAugmentor {
 		Map<Integer, Pair<Integer, Integer>> tokenMap = HashMapFactory.make();
 		CSVParser csvParser = CSVFormat.DEFAULT.withHeader().parse(new FileReader(System.getProperty("tokenFile")));
 		for (CSVRecord token : csvParser) {
-			int id = Integer.valueOf(token.get("Token Index"));
-			int startOffset = Integer.valueOf(token.get("Starting Character Index"));
-			int endOffsetInclusive = Integer.valueOf(token.get("Stop Character Index"));
+			int id = Integer.valueOf(token.get("seqnr"));
+			int startOffset = Integer.valueOf(token.get("start"));
+			int endOffsetInclusive = Integer.valueOf(token.get("stop"));
 			tokenMap.put(id, Pair.make(startOffset, endOffsetInclusive));
 		}
 		
@@ -209,7 +209,7 @@ public class GraphAugmentor {
 					return locations.get(node);
 				} else {
 					if (node.getString("node-type").equals("Token")) {
-						result = tokenMap.get(node.getInt("id"));
+						result = tokenMap.get(node.getInt("token-id"));
 					} else {
 						int start = Integer.MAX_VALUE;
 						int end = Integer.MIN_VALUE;
@@ -303,7 +303,7 @@ public class GraphAugmentor {
 					}
 				}
 				
-				try (Writer out = new FileWriter(System.getProperty("parseTreeFile").substring(0, System.getProperty("parseTreeFile").length()-4) + ".df.json")) {
+				try (Writer out = new FileWriter(System.getProperty("parseTreeFile").substring(0, System.getProperty("parseTreeFile").length()-5) + ".df.json")) {
 					parseTreeJson.write(out, 4, 0);
 				} catch (IOException e) {
 					e.printStackTrace();
