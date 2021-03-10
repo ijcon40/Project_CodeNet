@@ -23,9 +23,24 @@ import com.ibm.wala.util.graph.traverse.DFS;
 
 public class WalaToGNNFiles {
 
-	public static void main(String... args) throws ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException, IOException {
-		File outPath = new File(System.getProperty("outputDir"));
+	static File outPath;
+	
+	static {
+		outPath = new File(System.getProperty("outputDir"));
 		assert outPath.isDirectory();
+
+	}
+
+	private static void withOutput(String outFile, Consumer<PrintWriter>  doit) {
+		try (PrintWriter f = new PrintWriter(new FileWriter(new File(outPath, outFile)))) {
+			doit.accept(f);
+		} catch (IOException e) {
+			assert false;
+		}
+
+	}
+	
+	public static void main(String... args) throws ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException, IOException {
 		
 		new SourceDirCallGraph().doit(args, (cg, builder, time) -> { 
 			Collection<CGNode> roots = cg.getEntrypointNodes();
@@ -33,7 +48,8 @@ public class WalaToGNNFiles {
 
 			InterproceduralCFG ipcfg = new InterproceduralCFG(cg,
 				n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE || 
-					 n == cg.getFakeRootNode());
+					 n == cg.getFakeRootNode() ||
+					 n == cg.getFakeWorldClinitNode());
 			BasicBlockInContext<ISSABasicBlock> entry = ipcfg.getEntry(roots.iterator().next());
 
 			int dfsNumber = 0;
@@ -58,18 +74,19 @@ public class WalaToGNNFiles {
 			} 
 
 			// nodes files
+			withOutput("num-node-list.csv.gz", f -> {
+				f.println("" + dfsFinish.size());
+			});
 			
 			// DFS order file
-			try (PrintWriter f = new PrintWriter(new FileWriter(new File(outPath, "node_dfs_order.csv.gz")))) {
+			withOutput("node_dfs_order.csv.gz", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(new Consumer<BasicBlockInContext<ISSABasicBlock>>() {
 					public void accept(BasicBlockInContext<ISSABasicBlock> n) {
 						f.println("" + dfsFinish.get(n));
 					}
 				});
 				f.flush();
-			} catch (IOException e) {
-				assert false;
-			}
+			});
 		});
 	}
 }
