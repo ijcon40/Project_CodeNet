@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.ibm.wala.cast.java.ecj.util.SourceDirCallGraph;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
@@ -23,9 +24,12 @@ import com.ibm.wala.ipa.cha.ClassHierarchyException;
 import com.ibm.wala.ssa.ISSABasicBlock;
 import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
 import com.ibm.wala.ssa.SSANewInstruction;
+import com.ibm.wala.util.collections.FilterIterator;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
 import com.ibm.wala.util.collections.NonNullSingletonIterator;
+import com.ibm.wala.util.graph.Graph;
+import com.ibm.wala.util.graph.GraphSlicer;
 import com.ibm.wala.util.graph.traverse.BoundedBFSIterator;
 import com.ibm.wala.util.graph.traverse.DFS;
 
@@ -54,19 +58,23 @@ public class WalaToGNNFiles {
 			Collection<CGNode> roots = cg.getEntrypointNodes();
 			assert roots.size() == 1 : roots;
 
-			InterproceduralCFG ipcfg = new InterproceduralCFG(cg,
+			InterproceduralCFG full_ipcfg = new InterproceduralCFG(cg,
 				n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE || 
 					 n == cg.getFakeRootNode() ||
 					 n == cg.getFakeWorldClinitNode());
-			BasicBlockInContext<ISSABasicBlock> entry = ipcfg.getEntry(roots.iterator().next());
+			BasicBlockInContext<ISSABasicBlock> entry = full_ipcfg.getEntry(roots.iterator().next());
 
+			Graph<BasicBlockInContext<ISSABasicBlock>> ipcfg = 
+				GraphSlicer.prune(full_ipcfg, 
+					n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE);
+							
 			int dfsNumber = 0;
 			Map<BasicBlockInContext<ISSABasicBlock>,Integer> dfsFinish = HashMapFactory.make();
-			Iterator<BasicBlockInContext<ISSABasicBlock>> search = DFS.iterateFinishTime(ipcfg, new NonNullSingletonIterator<>(entry));
+			Iterator<BasicBlockInContext<ISSABasicBlock>> search = 
+				DFS.iterateFinishTime(ipcfg, new FilterIterator<>(ipcfg.iterator(), n -> n.equals(entry) || n.isEntryBlock() && n.getMethod().isClinit()));
 			while (search.hasNext()) {
 				dfsFinish.put(search.next(), dfsNumber++);
-			} 
-
+			} 			
 			ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(new Consumer<BasicBlockInContext<ISSABasicBlock>>() {
 				int id = 0;
 				public void accept(BasicBlockInContext<ISSABasicBlock> n) {
@@ -89,16 +97,16 @@ public class WalaToGNNFiles {
 			}
 			
 			// nodes files
-			withOutput("num-node-list.csv.gz", f -> {
+			withOutput("num-node-list.csv", f -> {
 				f.println("" + dfsFinish.size());
 			});
 			
-			withOutput("node_dfs_order.csv.gz", f -> {
+			withOutput("node_dfs_order.csv", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> f.println("" + dfsFinish.get(n)));
 				f.flush();
 			});
 
-			withOutput("node_depth.csv.gz", f -> {
+			withOutput("node_depth.csv", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> f.println("" + bfsDepth.get(n)));
 				f.flush();
 			});
@@ -119,7 +127,7 @@ public class WalaToGNNFiles {
 				return fss;
 			};
 
-			withOutput("node-feat.csv.gz", f -> {
+			withOutput("node-feat.csv", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> {
 					features.apply(n).forEach(s -> f.print(s + " "));
 					f.println();
@@ -127,7 +135,7 @@ public class WalaToGNNFiles {
 				f.flush();
 			});
 
-			withOutput("node_is_attributed.csv.gz", f -> {
+			withOutput("node_is_attributed.csv", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> {
 					f.println(! features.apply(n).isEmpty());
 				});
@@ -142,8 +150,8 @@ public class WalaToGNNFiles {
 					.forEach(p -> { 
 						ipcfg.getSuccNodes(p).forEachRemaining(s -> {
 							if (dfsFinish.containsKey(s) &&
-									!( (dfsStart.get(p) < dfsStart.get(s)) &&	
-									   (dfsFinish.get(p) > dfsFinish.get(s)) )) {
+									!( (dfsStart.get(p) > dfsStart.get(s)) &&	
+									   (dfsFinish.get(p) < dfsFinish.get(s)) )) {
 								edges.apply(p, s);
 							}
 						});
@@ -151,14 +159,14 @@ public class WalaToGNNFiles {
 				}
 			};
 			
-			withOutput("edges.csv.gz", f -> {
+			withOutput("edges.csv", f -> {
 				new EdgeProcessor().doit((p, s) -> {
 					f.println(dfsFinish.get(p) + "," + dfsFinish.get(s));
 					return null;
 				});
 			});
 
-			withOutput("num-edge-list.csv.gz", f -> {
+			withOutput("num-edge-list.csv", f -> {
 				Map<BasicBlockInContext<ISSABasicBlock>,Set<BasicBlockInContext<ISSABasicBlock>>> es = HashMapFactory.make();
 				new EdgeProcessor().doit((p, s) -> {
 						if (! es.containsKey(p)) {
@@ -176,7 +184,7 @@ public class WalaToGNNFiles {
 			
 			
 			// graph files
-			withOutput("graph-label.csv.gz", f -> {
+			withOutput("graph-label.csv", f -> {
 				f.println("" + System.getProperty("graphLabel"));
 			});
 
