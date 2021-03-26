@@ -12,7 +12,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 
 import com.ibm.wala.cast.java.ecj.util.SourceDirCallGraph;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
@@ -70,8 +70,9 @@ public class WalaToGNNFiles {
 							
 			int dfsNumber = 0;
 			Map<BasicBlockInContext<ISSABasicBlock>,Integer> dfsFinish = HashMapFactory.make();
-			Iterator<BasicBlockInContext<ISSABasicBlock>> search = 
-				DFS.iterateFinishTime(ipcfg, new FilterIterator<>(ipcfg.iterator(), n -> n.equals(entry) || n.isEntryBlock() && n.getMethod().isClinit()));
+			Supplier<FilterIterator<BasicBlockInContext<ISSABasicBlock>>> entryPoints = 
+				() -> new FilterIterator<>(ipcfg.iterator(), n -> n.equals(entry) || (n.isEntryBlock() && n.getMethod().isClinit()));
+			Iterator<BasicBlockInContext<ISSABasicBlock>> search = DFS.iterateFinishTime(ipcfg, entryPoints.get());
 			while (search.hasNext()) {
 				dfsFinish.put(search.next(), dfsNumber++);
 			} 			
@@ -84,7 +85,7 @@ public class WalaToGNNFiles {
 
 			int reverseDfsNumber = 0;
 			Map<BasicBlockInContext<ISSABasicBlock>,Integer> dfsStart = HashMapFactory.make();
-			Iterator<BasicBlockInContext<ISSABasicBlock>> reverseSearch = DFS.iterateDiscoverTime(ipcfg, new NonNullSingletonIterator<>(entry));
+			Iterator<BasicBlockInContext<ISSABasicBlock>> reverseSearch = DFS.iterateDiscoverTime(ipcfg, entryPoints.get());
 			while (reverseSearch.hasNext()) {
 				dfsStart.put(reverseSearch.next(), reverseDfsNumber++);
 			} 
