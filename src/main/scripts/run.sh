@@ -2,7 +2,7 @@
 
 ME=$0
 DIR=`dirname $0`
-ROOT=`realpath $DIR/../../..`
+ROOT=`realpath $DIR/../../../`
 
 list=$1
 slice=$2

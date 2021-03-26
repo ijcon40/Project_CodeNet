@@ -44,7 +44,7 @@ public class WalaToGNNFiles {
 	}
 
 	private static void withOutput(String outFile, Consumer<PrintWriter>  doit) {
-		try (PrintWriter f = new PrintWriter(new FileWriter(new File(outPath, outFile)))) {
+		try (PrintWriter f = new PrintWriter(new FileWriter(new File(outPath, outFile), true))) {
 			doit.accept(f);
 		} catch (IOException e) {
 			assert false;
