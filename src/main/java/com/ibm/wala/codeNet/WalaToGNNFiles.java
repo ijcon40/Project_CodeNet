@@ -168,19 +168,15 @@ public class WalaToGNNFiles {
 			});
 
 			withOutput("num-edge-list.csv", f -> {
-				Map<BasicBlockInContext<ISSABasicBlock>,Set<BasicBlockInContext<ISSABasicBlock>>> es = HashMapFactory.make();
+				class Box {
+					int i = 0;
+				}
+				Box b = new Box();
 				new EdgeProcessor().doit((p, s) -> {
-						if (! es.containsKey(p)) {
-							es.put(p, HashSetFactory.make());
-						}
-						es.get(p).add(s);
-						return null;
+					b.i++;
+					return null;
 				});
-				ipcfg.stream()
-						.filter(p -> dfsFinish.containsKey(p))
-						.forEach(p -> { 
-							f.println("" + (es.containsKey(p)? es.get(p).size(): 0));
-						});
+				f.println(b.i);
 			});
 			
 			
