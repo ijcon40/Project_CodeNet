@@ -128,7 +128,7 @@ public class WalaToGNNFiles {
 				return fss;
 			};
 
-			withOutput("node-feat.csv", f -> {
+			withOutput("node-feat", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> {
 					features.apply(n).forEach(s -> f.print(s + " "));
 					f.println();
@@ -181,7 +181,7 @@ public class WalaToGNNFiles {
 			
 			
 			// graph files
-			withOutput("graph-label.csv", f -> {
+			withOutput("graph-label", f -> {
 				f.println("" + System.getProperty("graphLabel"));
 			});
 
