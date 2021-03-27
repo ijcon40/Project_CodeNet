@@ -138,7 +138,7 @@ public class WalaToGNNFiles {
 
 			withOutput("node_is_attributed.csv", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> {
-					f.println(! features.apply(n).isEmpty());
+					f.println(features.apply(n).isEmpty()?  0: 1);
 				});
 				f.flush();
 			});
