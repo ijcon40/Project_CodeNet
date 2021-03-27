@@ -1,13 +1,13 @@
 #!/bin/bash
 
 ME=$0
-DIR=`basename $0`
+DIR=`dirname $0`
 ROOT=`realpath $DIR/../../../`
 
 list=$1
 slice=$2
 limit=$3
-ourdir=$4
+outdir=$4
 
 JAR=${ROOT}/target/AnalysisGraphGenerator-0.0.1-SNAPSHOT.jar
 CLS=com.ibm.wala.codeNet.WalaToGNNFiles
