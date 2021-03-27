@@ -7,11 +7,7 @@ ROOT=`realpath $DIR/../../../`
 list=$1
 slice=$2
 limit=$3
-<<<<<<< HEAD
 outdir=$4/$slice
-=======
-outdir=$4
->>>>>>> b57be80d17f3d5651bbcb6a907fdf5d22313a24a
 
 JAR=${ROOT}/target/AnalysisGraphGenerator-0.0.1-SNAPSHOT.jar
 CLS=com.ibm.wala.codeNet.WalaToGNNFiles
