@@ -1,4 +1,4 @@
-\#!/bin/bash
+#!/bin/bash
 
 ME=$0
 DIR=`dirname $0`
@@ -22,3 +22,4 @@ mkdir -p $outdir
     java -cp $JAR -DgraphLabel=$p -DoutputDir=$outdir $CLS -sourceDir=$f -mainClass=LMain
  done
 ) > /tmp/log.codenet.`basename $list`.${slice}.txt 2>&1
+
