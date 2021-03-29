@@ -91,7 +91,7 @@ public class WalaToGNNFiles {
 			} 
 
 			Map<BasicBlockInContext<ISSABasicBlock>,Integer> bfsDepth = HashMapFactory.make();
-			BoundedBFSIterator<BasicBlockInContext<ISSABasicBlock>> depths = new BoundedBFSIterator<>(ipcfg, new NonNullSingletonIterator<>(entry), 1000);
+			BoundedBFSIterator<BasicBlockInContext<ISSABasicBlock>> depths = new BoundedBFSIterator<>(ipcfg, entryPoints.get(), 1000);
 			while(depths.hasNext()) {
 				BasicBlockInContext<ISSABasicBlock> n = depths.next();
 				bfsDepth.put(n, depths.getCurrentHops());
@@ -108,7 +108,7 @@ public class WalaToGNNFiles {
 			});
 
 			withOutput("node_depth.csv", f -> {
-				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> f.println("" + bfsDepth.get(n)));
+				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> f.println("" + (bfsDepth.containsKey(n)? bfsDepth.get(n): 0)));
 				f.flush();
 			});
 
@@ -151,8 +151,8 @@ public class WalaToGNNFiles {
 					.forEach(p -> { 
 						ipcfg.getSuccNodes(p).forEachRemaining(s -> {
 							if (dfsFinish.containsKey(s) &&
-									!( (dfsStart.get(p) > dfsStart.get(s)) &&	
-									   (dfsFinish.get(p) < dfsFinish.get(s)) )) {
+									!( (dfsStart.get(p) >= dfsStart.get(s)) &&	
+									   (dfsFinish.get(p) <= dfsFinish.get(s)) )) {
 								edges.apply(p, s);
 							}
 						});
