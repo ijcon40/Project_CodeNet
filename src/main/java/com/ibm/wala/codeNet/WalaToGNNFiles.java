@@ -108,7 +108,10 @@ public class WalaToGNNFiles {
 			});
 
 			withOutput("node_depth.csv", f -> {
-				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> f.println("" + (bfsDepth.containsKey(n)? bfsDepth.get(n): 0)));
+				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> { 
+					assert bfsDepth.containsKey(n) : n;
+					f.println("" + bfsDepth.get(n));
+				});
 				f.flush();
 			});
 
@@ -160,7 +163,7 @@ public class WalaToGNNFiles {
 				}
 			};
 			
-			withOutput("edges.csv", f -> {
+			withOutput("edge.csv", f -> {
 				new EdgeProcessor().doit((p, s) -> {
 					f.println(dfsFinish.get(p) + "," + dfsFinish.get(s));
 					return null;
