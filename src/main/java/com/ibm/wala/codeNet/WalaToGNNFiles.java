@@ -133,7 +133,11 @@ public class WalaToGNNFiles {
 
 			withOutput("node-feat", f -> {
 				ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> {
-					features.apply(n).forEach(s -> f.print(s + " "));
+					if (features.apply(n).isEmpty()) {
+						f.print("none");
+					} else {
+						features.apply(n).forEach(s -> f.print(s + " "));
+					}
 					f.println();
 				});
 				f.flush();
