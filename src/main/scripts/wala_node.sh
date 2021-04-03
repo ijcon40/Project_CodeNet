@@ -1,11 +1,7 @@
 #!/bin/bash
 
-<<<<<<< HEAD
-DIR=`basename $0`
-=======
 DIR=`dirname $0`
 DIR=`realpath $DIR`
->>>>>>> 08efb1033a03da75ea823ecce9f7f7181c743ed9
 
 lst=$1
 dir=$2
