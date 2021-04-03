@@ -1,6 +1,7 @@
 #!/bin/bash
 
 DIR=`dirname $0`
+DIR=`realpath $DIR`
 
 lst=$1
 dir=$2
@@ -12,8 +13,8 @@ nodes=${#@}
 slices=`expr 50 '*' $nodes`
 
 slice=0
-for host in $host; do
-    ssh -J dyce2.watson.ibm.com $host $DIR/wala_node.sh $lst $dir $slice $slices &
+for host in $hosts; do
+    ssh $host bash $DIR/wala_node.sh $lst $dir $slice $slices &
     slice=`expr $slice + 50`
 done
 
@@ -21,7 +22,7 @@ wait
 
 for f in `ls $dir/11/* | fgrep -v .csv`; do
     d=`basename $f`
-    gawk -f src/main/scripts/to_numbers.awk $dir/*/$d
+    gawk -f $DIR/to_numbers.awk $dir/*/$d
 done
 
 for f in $dir/11/*.csv; do

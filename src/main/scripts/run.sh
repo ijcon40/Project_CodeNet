@@ -19,7 +19,7 @@ mkdir -p $outdir
     jdir=`dirname $f`
     pdir=`dirname $jdir`
     p=`basename $pdir`
-    java -cp $JAR -ea -DgraphLabel=$p -DoutputDir=$outdir $CLS -sourceDir=$f -mainClass=LMain
+    java -ea -cp $JAR -DgraphLabel=$p -DoutputDir=$outdir $CLS -sourceDir=$f -mainClass=LMain
  done
 ) > /tmp/log.codenet.`basename $list`.${slice}.txt 2>&1
 
