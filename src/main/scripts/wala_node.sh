@@ -1,5 +1,7 @@
 #!/bin/bash
 
+DIR=`basename $0`
+
 lst=$1
 dir=$2
 start_slice=$3
