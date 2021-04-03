@@ -8,12 +8,12 @@ dir=$2
 shift; shift
 
 hosts="$@"
-nodes=${#hosts}
+nodes=${#@}
 slices=`expr 50 '*' $nodes`
 
 slice=0
 for host in $host; do
-    ssh $host $DIR/wala_node.sh $lst $dir $slice $slices &
+    ssh -J dyce2.watson.ibm.com $host $DIR/wala_node.sh $lst $dir $slice $slices &
     slice=`expr $slice + 50`
 done
 
