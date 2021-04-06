@@ -20,7 +20,7 @@ done
 
 wait
 
-for f in `ls $dir/11/* | fgrep -v .csv`; do
+for f in `ls $dir/11/* | fgrep -v .csv | fgrep -v .txt`; do
     d=`basename $f`
     gawk -f $DIR/to_numbers.awk $dir/*/$d
 done
