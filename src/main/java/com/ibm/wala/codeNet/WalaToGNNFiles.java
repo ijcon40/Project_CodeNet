@@ -202,12 +202,18 @@ public class WalaToGNNFiles {
 		});
 		
 		withOutput("node_dfs_order.csv", f -> {
-			ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> f.println("" + dfsFinish.get(n)));
+			ipcfg.stream()
+				.filter(n -> dfsFinish.containsKey(n))
+				.sorted((l, r) -> dfsFinish.get(l) - dfsFinish.get(r))
+				.forEach(n -> f.println("" + dfsFinish.get(n)));
 			f.flush();
 		});
 
 		withOutput("node_depth.csv", f -> {
-			ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> { 
+			ipcfg.stream()
+			.filter(n -> dfsFinish.containsKey(n))
+			.sorted((l, r) -> dfsFinish.get(l) - dfsFinish.get(r))
+			.forEach(n -> { 
 				assert bfsDepth.containsKey(n) : n;
 				f.println("" + bfsDepth.get(n));
 			});
@@ -215,7 +221,10 @@ public class WalaToGNNFiles {
 		});
 
 		withOutput("node-feat", f -> {
-			ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> {
+			ipcfg.stream()
+			.filter(n -> dfsFinish.containsKey(n))
+			.sorted((l, r) -> dfsFinish.get(l) - dfsFinish.get(r))
+			.forEach(n -> {
 				if (features.apply(n).isEmpty()) {
 					f.print("none");
 				} else {
@@ -227,12 +236,23 @@ public class WalaToGNNFiles {
 		});
 
 		withOutput("node_is_attributed.csv", f -> {
-			ipcfg.stream().filter(n -> dfsFinish.containsKey(n)).forEach(n -> {
+			ipcfg.stream()
+				.filter(n -> dfsFinish.containsKey(n))
+				.sorted((l, r) -> dfsFinish.get(l) - dfsFinish.get(r))
+				.forEach(n -> {
 				f.println(features.apply(n).isEmpty()?  0: 1);
 			});
 			f.flush();
 		});
-		
+
+		withOutput("node_doc.txt", f -> {
+			ipcfg.stream()
+				.filter(n -> dfsFinish.containsKey(n))
+				.sorted((l, r) -> dfsFinish.get(l) - dfsFinish.get(r))
+				.forEach(n -> f.println(dfsFinish.get(n) + ":" + n));
+			f.flush();
+		});
+
 		// edge files
 		class EdgeProcessor {
 			void doit(BiFunction<T,T,Void> edges) {
