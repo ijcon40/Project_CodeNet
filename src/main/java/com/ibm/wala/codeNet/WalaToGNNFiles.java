@@ -165,7 +165,11 @@ public class WalaToGNNFiles {
 			(p, s) -> String.valueOf(sdg.getEdgeLabels(p, s).iterator().next()),
 			(n) -> {
 				Position p = GraphAugmentor.getPosition(n);
-				return new int[] { p.getFirstOffset(), p.getLastOffset() };
+				if (p != null) {
+					return new int[] { p.getFirstOffset(), p.getLastOffset() };
+				} else {
+					return null;
+				}
 			});
 					
 		
@@ -310,7 +314,7 @@ public class WalaToGNNFiles {
 			});
 		});
 		
-		try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(new File(outPath, "xxx")))) {
+		try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(new File(outPath, System.getProperty("graphLabel") + ".javaData")))) {
 			oos.writeObject(out);
 		} catch (IOException e) {
 			assert false : e;
