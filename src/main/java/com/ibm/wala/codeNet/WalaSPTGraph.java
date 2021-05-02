@@ -1,38 +1,54 @@
 package com.ibm.wala.codeNet;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import com.ibm.wala.util.collections.EmptyIterator;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
-import com.ibm.wala.util.graph.AbstractGraph;
-import com.ibm.wala.util.graph.EdgeManager;
-import com.ibm.wala.util.graph.NodeManager;
+import com.ibm.wala.util.graph.AbstractNumberedGraph;
+import com.ibm.wala.util.graph.NumberedEdgeManager;
+import com.ibm.wala.util.graph.NumberedNodeManager;
+import com.ibm.wala.util.intset.IntSet;
+import com.ibm.wala.util.intset.IntSetUtil;
+import com.ibm.wala.util.intset.MutableIntSet;
 
-public class WalaSPTGraph extends AbstractGraph<JSONObject> {
-	NodeManager<JSONObject> nodes;
-	private EdgeManager<JSONObject> edges;
-
+public class WalaSPTGraph extends AbstractNumberedGraph<JSONObject> {
+	NumberedNodeManager<JSONObject> nodes;
+	private NumberedEdgeManager<JSONObject> edges;
+	public final int root;
+	
+	public WalaSPTGraph(String parseTreeFile) throws JSONException, FileNotFoundException {
+		this((JSONObject)new JSONTokener(new FileInputStream(parseTreeFile)).nextValue());
+	}
+	
 	public WalaSPTGraph(JSONObject parseTreeJson) {
-		nodes = new NodeManager<JSONObject>() {
-			private Set<JSONObject> a = HashSetFactory.make();
+		root = parseTreeJson
+				.getJSONObject("graph")
+				.getInt("root");
+		
+		nodes = new NumberedNodeManager<JSONObject>() {
+			private Map<Integer,JSONObject> a = HashMapFactory.make();
 			
 			{
 				parseTreeJson
 					.getJSONObject("graph")
 					.getJSONArray("nodes")
-					.forEach(n -> a.add((JSONObject)n));
+					.forEach(n -> a.put(((JSONObject)n).getInt("id"), (JSONObject)n));
 			}
 
 			@Override
 			public Stream<JSONObject> stream() {
-				return a.stream();
+				return a.values().stream();
 			}
 
 			@Override
@@ -52,11 +68,33 @@ public class WalaSPTGraph extends AbstractGraph<JSONObject> {
 
 			@Override
 			public boolean containsNode(JSONObject n) {
-				return a.contains(n);
+				return a.values().contains(n);
+			}
+
+			@Override
+			public int getNumber(JSONObject N) {
+				return N.getInt("id");
+			}
+
+			@Override
+			public JSONObject getNode(int number) {
+				return a.get(number);
+			}
+
+			@Override
+			public int getMaxNumber() {
+				return a.size();
+			}
+
+			@Override
+			public Iterator<JSONObject> iterateNodes(IntSet s) {
+				Set<JSONObject> result = HashSetFactory.make();
+				s.foreach(n -> result.add(getNode(n)));
+				return result.iterator();
 			}
 			
 		};
-		edges = new EdgeManager<JSONObject>() {
+		edges = new NumberedEdgeManager<JSONObject>() {
 			private Map<JSONObject,Set<JSONObject>> forward = HashMapFactory.make();
 			private Map<JSONObject,Set<JSONObject>> backward = HashMapFactory.make();
 			
@@ -141,17 +179,31 @@ public class WalaSPTGraph extends AbstractGraph<JSONObject> {
 			public boolean hasEdge(JSONObject src, JSONObject dst) {
 				return forward.get(src).contains(dst);
 			}
+
+			@Override
+			public IntSet getSuccNodeNumbers(JSONObject node) {
+				MutableIntSet ns = IntSetUtil.make();
+				getSuccNodes(node).forEachRemaining(s -> ns.add(getNumber(s)));
+				return ns;
+			}
+
+			@Override
+			public IntSet getPredNodeNumbers(JSONObject node) {
+				MutableIntSet ns = IntSetUtil.make();
+				getPredNodes(node).forEachRemaining(s -> ns.add(getNumber(s)));
+				return ns;
+			}
 			
 		};
 	}
 
 	@Override
-	protected NodeManager<JSONObject> getNodeManager() {
+	protected NumberedNodeManager<JSONObject> getNodeManager() {
 		return nodes;
 	}
 
 	@Override
-	protected EdgeManager<JSONObject> getEdgeManager() {
+	protected NumberedEdgeManager<JSONObject> getEdgeManager() {
 		return edges;
 	}
 }

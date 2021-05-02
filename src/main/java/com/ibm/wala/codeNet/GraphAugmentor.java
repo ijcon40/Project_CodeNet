@@ -1,177 +1,131 @@
 package com.ibm.wala.codeNet;
 
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Writer;
-import java.util.Comparator;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
-import java.util.function.Consumer;
 
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import com.ibm.wala.cast.java.ecj.util.SourceDirCallGraph;
-import com.ibm.wala.cast.java.ecj.util.SourceDirCallGraph.Processor;
+import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
+import com.ibm.wala.cast.java.ipa.modref.AstJavaModRef;
 import com.ibm.wala.cast.loader.AstMethod;
 import com.ibm.wala.cast.loader.AstMethod.DebuggingInformation;
 import com.ibm.wala.cast.tree.CAstSourcePositionMap.Position;
+import com.ibm.wala.cast.util.SourceBuffer;
 import com.ibm.wala.ipa.callgraph.CGNode;
-import com.ibm.wala.ipa.callgraph.CallGraph;
-import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.CallGraphBuilderCancelException;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.PropagationCallGraphBuilder;
 import com.ibm.wala.ipa.cha.ClassHierarchyException;
-import com.ibm.wala.ssa.DefUse;
+import com.ibm.wala.ipa.slicer.Dependency;
+import com.ibm.wala.ipa.slicer.NormalStatement;
+import com.ibm.wala.ipa.slicer.ParamCallee;
+import com.ibm.wala.ipa.slicer.ParamCaller;
+import com.ibm.wala.ipa.slicer.SDG;
+import com.ibm.wala.ipa.slicer.Slicer;
+import com.ibm.wala.ipa.slicer.Statement;
 import com.ibm.wala.ssa.SSAInstruction;
-import com.ibm.wala.ssa.SSAPhiInstruction;
 import com.ibm.wala.util.collections.HashMapFactory;
-import com.ibm.wala.util.collections.HashSetFactory;
-import com.ibm.wala.util.collections.Pair;
 import com.ibm.wala.util.graph.Graph;
+import com.ibm.wala.util.graph.GraphSlicer;
 
 public class GraphAugmentor {
 
 	public static void main(String... args) throws ClassHierarchyException, IllegalArgumentException, CallGraphBuilderCancelException, IOException {
-		Map<Integer, Pair<Integer, Integer>> tokenMap = HashMapFactory.make();
-		CSVParser csvParser = CSVFormat.DEFAULT.withHeader().parse(new FileReader(System.getProperty("tokenFile")));
-		for (CSVRecord token : csvParser) {
-			int id = Integer.valueOf(token.get("seqnr"));
-			int startOffset = Integer.valueOf(token.get("start"));
-			int endOffsetInclusive = Integer.valueOf(token.get("stop"));
-			tokenMap.put(id, Pair.make(startOffset, endOffsetInclusive));
-		}
-		
-		JSONObject parseTreeJson = 
-			(JSONObject)new JSONTokener(new FileInputStream(System.getProperty("parseTreeFile")))
-			.nextValue();
+		NodeFinder nf = new NodeFinder(System.getProperty("tokenFile"), System.getProperty("parseTreeFile"));
+				
+		(new SourceDirCallGraph()).doit(args, (cg, builder, time) -> { 
+		    SDG<? extends InstanceKey> sdg =
+		    		new SDG<>(
+		                cg,
+		                ((PropagationCallGraphBuilder)builder).getPointerAnalysis(),
+		                new AstJavaModRef<>(),
+		                Slicer.DataDependenceOptions.NO_HEAP_NO_EXCEPTIONS,
+		                Slicer.ControlDependenceOptions.NO_EXCEPTIONAL_EDGES);
 
-		Graph<JSONObject> parseTree = new WalaSPTGraph(parseTreeJson);
-		
-		(new SourceDirCallGraph()).doit(args, new Processor() {
+			Graph<Statement> srcSdg = GraphSlicer.prune(sdg, 
+				n -> n.getNode().getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE);
+
+			Map<Dependency, JSONArray> sdgEdgesForSpt = HashMapFactory.make();
 			
-			private Map<JSONObject, Pair<Integer, Integer>> locations = HashMapFactory.make();
-			private SortedMap<Integer,Set<JSONObject>> offsetToNodes = new TreeMap<>(new Comparator<Integer>() {
-				@Override
-				public int compare(Integer o1, Integer o2) {
-					return o1 - o2;
+			srcSdg.forEach(srcNode -> { 
+				JSONObject srcJson = findNodeForStatement(nf, srcNode);
+				if (srcJson != null) {
+					srcSdg.getSuccNodes(srcNode).forEachRemaining(dstNode -> { 
+						JSONObject dstJson = findNodeForStatement(nf, dstNode);
+						if (dstJson != null && !srcJson.equals(dstJson)) {
+							JSONArray ea = new JSONArray(new int[] {srcJson.getInt("id"), dstJson.getInt("id")});
+							JSONObject e = new JSONObject();
+							e.put("between", ea);
+							sdg.getEdgeLabels(srcNode, dstNode).forEach(l -> {
+								if (! sdgEdgesForSpt.containsKey(l)) {
+									sdgEdgesForSpt.put(l, new JSONArray());
+								}
+								sdgEdgesForSpt.get(l).put(e);
+							});
+						}
+					});
 				}
 			});
 			
-			private Pair<Integer,Integer> location(JSONObject node) {
-				Pair<Integer,Integer> result;
-				if (locations.containsKey(node)) {
-					return locations.get(node);
-				} else {
-					if (node.getString("node-type").equals("Token")) {
-						result = tokenMap.get(node.getInt("token-id"));
-					} else {
-						int start = Integer.MAX_VALUE;
-						int end = Integer.MIN_VALUE;
-						Iterator<JSONObject> ss = parseTree.getSuccNodes(node);
-						while (ss.hasNext()) {
-							Pair<Integer,Integer> s = location(ss.next());
-							if (s.fst < start) {
-								start = s.fst;
-							}
-							if (s.snd > end) {
-								end = s.snd;
-							}
-						}
-						result = Pair.make(start, end);
-					}
-					locations.put(node, result);
-					for(int i = result.fst; i <= result.snd; i++) {
-						if (! offsetToNodes.containsKey(i)) {
-							offsetToNodes.put(i,  HashSetFactory.make());
-						}
-						
-						offsetToNodes.get(i).add(node);
-					}
-					return result;
+			sdgEdgesForSpt.entrySet().forEach(es -> {
+				try {
+					JSONObject json = ((JSONObject)new JSONTokener(new FileInputStream(System.getProperty("parseTreeFile"))).nextValue());
+					json.getJSONObject("graph").put("edges", es.getValue());
+					json.getJSONObject("graph").put("num-of-edges", es.getValue().length());
+					try (FileWriter f = new FileWriter(System.getProperty("parseTreeFile") + "." + es.getKey())) {
+						json.write(f, 2, 0);
+					} 
+				} catch (JSONException | IOException e) {
+					assert false : e;
 				}
-			}
-			
-			@Override
-			public void process(CallGraph cg, CallGraphBuilder<?> builder, long time) {
-				parseTree.forEach(jsonNode -> { 
-					location(jsonNode);
-				});
-				
-				for (CGNode n : cg) {
-					if (n.getMethod() instanceof AstMethod) {
-						DefUse DU = n.getDU();
-						DebuggingInformation DI = ((AstMethod)n.getMethod()).debugInfo();
-						Set<Pair<JSONObject,JSONObject>> df = HashSetFactory.make();
-						n.getIR().iterateAllInstructions().forEachRemaining(inst -> { 
-							if (inst.iIndex() >= 0 && inst.getDef() > 0) {
-								Position src = DI.getInstructionPosition(inst.iIndex());
-								if (src != null) {
-									for(int i = src.getFirstOffset(); i <= src.getLastOffset(); i++) {
-										if (offsetToNodes.containsKey(i)) {											
-											offsetToNodes.get(i).forEach(srcNode -> {
-												if ("expression".equals(srcNode.get("type-rule-name"))) {
-													JSONArray dataflowTo;
-													if (srcNode.has("dataflow")) {
-														dataflowTo = srcNode.getJSONArray("dataflow");
-													} else {
-														dataflowTo = new JSONArray();
-														srcNode.put("dataflow", dataflowTo);
-													}
-													DU.getUses(inst.getDef()).forEachRemaining(new Consumer<SSAInstruction>() {
-														private final Set<SSAInstruction> history = HashSetFactory.make();
-
-														@Override
-														public void accept(SSAInstruction succ) {
-															if (! history.contains(succ)) {
-																history.add(succ);
-																if (succ instanceof SSAPhiInstruction) {
-																	DU.getUses(succ.getDef()).forEachRemaining(ss -> accept(succ));
-																}  else {
-																	Position dst = DI.getInstructionPosition(succ.iIndex());
-																	if (dst != null) {
-																		for(int j = dst.getFirstOffset(); j <= dst.getLastOffset(); j++) {
-																			if (offsetToNodes.containsKey(j)) {
-																				offsetToNodes.get(j).forEach(dstNode -> {
-																					if ("expression".equals(dstNode.get("type-rule-name"))) {
-																						Pair<JSONObject, JSONObject> key = Pair.make(srcNode,  dstNode);
-																						if (! df.contains(key)) {
-																							df.add(key);
-																							dataflowTo.put(dstNode.getInt("id"));
-																						}
-																					}
-																				});
-																			}
-																		}
-																	}
-																}
-															}
-														}	
-													});
-												}
-											});
-										}
-									}
-								}
-							}
-						});
-					}
-				}
-				
-				try (Writer out = new FileWriter(System.getProperty("parseTreeFile").substring(0, System.getProperty("parseTreeFile").length()-5) + ".df.json")) {
-					parseTreeJson.write(out, 4, 0);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
+			});
 		});
+	}
+
+	private static JSONObject findNodeForStatement(NodeFinder nf, Statement srcNode) {
+		Position srcPos = getPosition(srcNode);
+		
+		JSONObject srcJson = nf.getCoveringNode(srcPos.getFirstOffset(), srcPos.getLastOffset());
+		
+		try {
+			System.err.println(srcJson.getInt("id") + " : " + new SourceBuffer(srcPos) + " : " + srcNode);
+		} catch (IOException e) {
+			
+		}
+		
+		return srcJson;
+	}
+
+	static Position getPosition(Statement srcNode) {
+		Position srcPos;
+		CGNode srcCG = srcNode.getNode();
+		DebuggingInformation debugInfo = ((AstMethod)srcCG.getMethod()).debugInfo();
+		if (srcNode.getKind() == Statement.Kind.NORMAL) {
+			SSAInstruction srcInst = ((NormalStatement)srcNode).getInstruction();
+			srcPos = debugInfo.getInstructionPosition(srcInst.iIndex());
+		} else if (srcNode.getKind() == Statement.Kind.PARAM_CALLER) findParamCaller: {
+			SSAInstruction call = ((ParamCaller)srcNode).getInstruction();
+			int vn = ((ParamCaller)srcNode).getValueNumber();
+			for(int i = 0; i < call.getNumberOfUses(); i++) {
+				if (call.getUse(i) == vn) {
+					srcPos = debugInfo.getOperandPosition(call.iIndex(), i);
+					break findParamCaller;
+				}
+			}
+			assert false;
+			return null;
+		} else if (srcNode.getKind() == Statement.Kind.PARAM_CALLEE) {
+			int arg = ((ParamCallee)srcNode).getValueNumber() - 1;
+			srcPos = debugInfo.getParameterPosition(arg);
+		} else {
+			return null;
+		}
+		return srcPos;
 	}
 }
