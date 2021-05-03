@@ -10,12 +10,12 @@ shift; shift
 
 hosts="$@"
 nodes=${#@}
-slices=`expr 50 '*' $nodes`
+slices=`expr 15 '*' $nodes`
 
 slice=0
 for host in $hosts; do
     ssh $host bash $DIR/wala_node.sh $lst $dir $slice $slices &
-    slice=`expr $slice + 50`
+    slice=`expr $slice + 15`
 done
 
 wait
