@@ -224,7 +224,7 @@ public class WalaToGNNFiles {
 	}
 
 	private static void readGraph(String fileName) {
-		try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(new File(outPath, fileName)))) {
+		try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(fileName))) {
 			@SuppressWarnings("unchecked")
 			LabeledGraph<Node, String> G = (LabeledGraph<Node, String>) ois.readObject();
 			writeGraph(() -> G.stream().filter(Node::isEntryPoint).iterator(), G, Node::features, (p, s) -> G.getEdgeLabels(p, s).iterator().next(), Node::position);
