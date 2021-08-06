@@ -105,6 +105,9 @@ public class GraphAugmentor {
 	static Position getPosition(Statement srcNode) {
 		Position srcPos;
 		CGNode srcCG = srcNode.getNode();
+		if (! (srcCG.getMethod() instanceof AstMethod)) {
+			return null;
+		}
 		DebuggingInformation debugInfo = ((AstMethod)srcCG.getMethod()).debugInfo();
 		if (srcNode.getKind() == Statement.Kind.NORMAL) {
 			SSAInstruction srcInst = ((NormalStatement)srcNode).getInstruction();

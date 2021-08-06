@@ -34,8 +34,8 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.7.0</version>
         <configuration>
-          <source>11</source>
-          <target>11</target>
+          <source>8</source>
+          <target>8</target>
         </configuration>
       </plugin>
            <plugin>
@@ -90,6 +90,31 @@
     </dependency>
     <dependency>
       <groupId>com.ibm.wala</groupId>
+      <artifactId>com.ibm.wala.cast.js</artifactId>
+      <version>1.5.7-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ibm.wala</groupId>
+      <artifactId>com.ibm.wala.cast.js.rhino</artifactId>
+      <version>1.5.7-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ibm.wala</groupId>
+      <artifactId>com.ibm.wala.cast.python</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ibm.wala</groupId>
+      <artifactId>com.ibm.wala.cast.python.jython3</artifactId>
+      <version>0.0.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ibm.wala</groupId>
+      <artifactId>com.ibm.wala.dalvik</artifactId>
+      <version>1.5.7-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>com.ibm.wala</groupId>
       <artifactId>com.ibm.wala.cast.java</artifactId>
       <version>1.5.7-SNAPSHOT</version>
     </dependency>
@@ -97,11 +122,6 @@
       <groupId>com.ibm.wala</groupId>
       <artifactId>com.ibm.wala.cast.java.ecj</artifactId>
       <version>1.5.7-SNAPSHOT</version>
-    </dependency>
-    <dependency>
-       <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.13.2</version>
     </dependency>
       <dependency>
           <groupId>org.json</groupId>
