@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import com.ibm.wala.analysis.nullpointer.IntraproceduralNullPointerAnalysis;
 import com.ibm.wala.cast.java.ecj.util.SourceDirCallGraph;
 import com.ibm.wala.cast.java.ipa.callgraph.JavaSourceAnalysisScope;
 import com.ibm.wala.cast.java.ipa.modref.AstJavaModRef;
@@ -45,13 +46,7 @@ import com.ibm.wala.ipa.slicer.PhiStatement;
 import com.ibm.wala.ipa.slicer.SDG;
 import com.ibm.wala.ipa.slicer.Slicer;
 import com.ibm.wala.ipa.slicer.Statement;
-import com.ibm.wala.ssa.ISSABasicBlock;
-import com.ibm.wala.ssa.SSAAbstractInvokeInstruction;
-import com.ibm.wala.ssa.SSABinaryOpInstruction;
-import com.ibm.wala.ssa.SSAConditionalBranchInstruction;
-import com.ibm.wala.ssa.SSAInstruction;
-import com.ibm.wala.ssa.SSANewInstruction;
-import com.ibm.wala.ssa.SSAUnaryOpInstruction;
+import com.ibm.wala.ssa.*;
 import com.ibm.wala.util.collections.FilterIterator;
 import com.ibm.wala.util.collections.HashMapFactory;
 import com.ibm.wala.util.collections.HashSetFactory;
@@ -74,12 +69,17 @@ public class WalaNullPointerAnalysis {
         } else {
             new SourceDirCallGraph().doit(args, (cg, builder, time) -> {
                 //here we can use the context graph to get the nodes from the nullpointer analysis
+                Collection<CGNode> nodes  = cg.getEntrypointNodes();
+//                CGNode fakeRoot = cg.getFakeRootNode();
+//                IR ir = fakeRoot.getIR();
+//                IntraproceduralNullPointerAnalysis nullPointerAnalysis = new IntraproceduralNullPointerAnalysis(ir);
+//
 
-                if (Boolean.getBoolean("SDG")) {
-                    //sdgToGNNFiles(cg, builder);
-                } else {
-                    //ipcfgToGNNFiles(cg, builder);
+                for(CGNode cgnode: nodes){
+                    IR ir = cgnode.getIR();
+                    IntraproceduralNullPointerAnalysis nullPointerAnalysis = new IntraproceduralNullPointerAnalysis(ir);
                 }
+
             });
         }
     }
