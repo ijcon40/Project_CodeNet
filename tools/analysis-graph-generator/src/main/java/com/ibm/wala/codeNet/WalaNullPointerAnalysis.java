@@ -74,10 +74,41 @@ public class WalaNullPointerAnalysis {
 //                IR ir = fakeRoot.getIR();
 //                IntraproceduralNullPointerAnalysis nullPointerAnalysis = new IntraproceduralNullPointerAnalysis(ir);
 //
+                InterproceduralCFG full_ipcfg = new InterproceduralCFG(cg,
+                        n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE ||
+                                n == cg.getFakeRootNode() ||
+                                n == cg.getFakeWorldClinitNode());
 
                 for(CGNode cgnode: nodes){
                     IR ir = cgnode.getIR();
                     IntraproceduralNullPointerAnalysis nullPointerAnalysis = new IntraproceduralNullPointerAnalysis(ir);
+                    BasicBlockInContext<ISSABasicBlock> entry = full_ipcfg.getEntry(cgnode);
+                    for (SSAInstruction instruction : entry) {
+                        nullPointerAnalysis.nullPointerExceptionThrowState(instruction);
+                    }
+
+                }
+                Collection<CGNode> roots = cg.getEntrypointNodes();
+                assert roots.size() == 1 : roots;
+
+                BasicBlockInContext<ISSABasicBlock> entry = full_ipcfg.getEntry(roots.iterator().next());
+
+                Graph<BasicBlockInContext<ISSABasicBlock>> ipcfg =
+                        GraphSlicer.prune(full_ipcfg,
+                                n -> n.getMethod().getReference().getDeclaringClass().getClassLoader() == JavaSourceAnalysisScope.SOURCE);
+
+                Supplier<Iterator<BasicBlockInContext<ISSABasicBlock>>> entryPoints =
+                        () -> new FilterIterator<>(ipcfg.iterator(), n -> n.equals(entry) || (n.isEntryBlock() && n.getMethod().isClinit()));
+
+                //now we can iterate through and hopefully create Intra
+                for (Iterator<BasicBlockInContext<ISSABasicBlock>> it = entryPoints.get(); it.hasNext(); ) {
+                    BasicBlockInContext<ISSABasicBlock> node = it.next();
+                    for(Iterator<SSAInstruction> instructions = node.iterator(); instructions.hasNext();) {
+                        SSAInstruction instruction = instructions.next();
+                        //IntraproceduralNullPointerAnalysis nullPointerAnalysis = new IntraproceduralNullPointerAnalysis(instruction.)
+                    }
+
+
                 }
 
             });
